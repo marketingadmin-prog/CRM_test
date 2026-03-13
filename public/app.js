@@ -521,10 +521,366 @@ function closeDeleteModal() {
 }
 
 // ================================================================
-// DEALS (placeholder)
+// DEALS — Kanban Board
 // ================================================================
+
+// Stage config: label, header color, card accent
+const STAGES = [
+  { key: 'new',         label: 'New',         color: '#818cf8', ring: 'border-indigo-700/50',  dot: 'bg-indigo-400' },
+  { key: 'contacted',   label: 'Contacted',   color: '#60a5fa', ring: 'border-blue-700/50',    dot: 'bg-blue-400' },
+  { key: 'proposal',    label: 'Proposal',    color: '#a78bfa', ring: 'border-purple-700/50',  dot: 'bg-purple-400' },
+  { key: 'negotiation', label: 'Negotiation', color: '#f59e0b', ring: 'border-yellow-700/50',  dot: 'bg-yellow-400' },
+  { key: 'won',         label: 'Won',         color: '#34d399', ring: 'border-green-700/50',   dot: 'bg-green-400' },
+  { key: 'lost',        label: 'Lost',        color: '#f87171', ring: 'border-red-700/50',     dot: 'bg-red-400' },
+];
+
+// loadDeals — fetch deals + render kanban + update summary bar
 async function loadDeals() {
-  // implement ใน Prompt ถัดไป
+  try {
+    const res   = await fetch('/api/deals');
+    const deals = await res.json();
+    renderKanban(deals);
+    renderDealSummary(deals);
+  } catch (err) {
+    document.getElementById('kanban-board').innerHTML =
+      `<p class="text-red-400 text-sm py-10 px-4">ไม่สามารถโหลด deals ได้</p>`;
+  }
+}
+
+// renderDealSummary — summary bar 3 cards
+function renderDealSummary(deals) {
+  const total    = deals.reduce((s, d) => s + parseFloat(d.value || 0), 0);
+  const wonDeals = deals.filter(d => d.stage === 'won');
+  const wonVal   = wonDeals.reduce((s, d) => s + parseFloat(d.value || 0), 0);
+  const closed   = deals.filter(d => d.stage === 'won' || d.stage === 'lost').length;
+  const winRate  = closed ? Math.round((wonDeals.length / closed) * 100) : 0;
+
+  document.getElementById('deal-total-value').textContent = '฿' + total.toLocaleString('th-TH');
+  document.getElementById('deal-won-value').textContent   =
+    `฿${wonVal.toLocaleString('th-TH')} (${wonDeals.length})`;
+  document.getElementById('deal-win-rate').textContent    = `${winRate}%`;
+}
+
+// renderKanban — สร้าง 6 columns
+function renderKanban(deals) {
+  const board = document.getElementById('kanban-board');
+
+  // จัดกลุ่ม deals ตาม stage
+  const grouped = {};
+  STAGES.forEach(s => { grouped[s.key] = []; });
+  deals.forEach(d => {
+    if (grouped[d.stage] !== undefined) grouped[d.stage].push(d);
+  });
+
+  board.innerHTML = STAGES.map(stage => {
+    const cards     = grouped[stage.key];
+    const count     = cards.length;
+    const stageVal  = cards.reduce((s, d) => s + parseFloat(d.value || 0), 0);
+
+    return `
+      <div class="flex flex-col w-64 flex-shrink-0">
+
+        <!-- Column Header -->
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full ${stage.dot}"></span>
+            <span class="text-xs font-semibold text-gray-300 uppercase tracking-wide">${stage.label}</span>
+            <span class="text-xs bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded-full">${count}</span>
+          </div>
+          <span class="text-xs text-gray-600">฿${stageVal.toLocaleString('th-TH')}</span>
+        </div>
+
+        <!-- Colored top-bar -->
+        <div class="h-0.5 rounded-full mb-3" style="background:${stage.color};opacity:0.5"></div>
+
+        <!-- Deal Cards -->
+        <div class="flex flex-col gap-2 min-h-[80px]">
+          ${count === 0
+            ? `<div class="border-2 border-dashed border-gray-800 rounded-xl h-20
+                          flex items-center justify-center">
+                 <span class="text-xs text-gray-700">ไม่มี deals</span>
+               </div>`
+            : cards.map(d => dealCard(d, stage)).join('')
+          }
+        </div>
+
+        <!-- Add card shortcut -->
+        <button onclick="openAddDealModal('${stage.key}')"
+          class="mt-3 w-full text-xs text-gray-600 hover:text-gray-400 hover:bg-gray-800/50
+                 py-2 rounded-lg border border-transparent hover:border-gray-800 transition-all flex items-center justify-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          เพิ่ม
+        </button>
+
+      </div>`;
+  }).join('');
+}
+
+// dealCard — render deal card HTML
+function dealCard(d, stage) {
+  const fmtVal    = parseFloat(d.value || 0).toLocaleString('th-TH');
+  const closeDate = d.close_date
+    ? new Date(d.close_date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
+    : null;
+
+  // วันปิดเลย = แดง, ใกล้เลย (≤7 วัน) = เหลือง
+  let dateCls = 'text-gray-600';
+  if (d.close_date) {
+    const diff = (new Date(d.close_date) - new Date()) / 86400000;
+    if (diff < 0)  dateCls = 'text-red-400';
+    else if (diff <= 7) dateCls = 'text-yellow-400';
+  }
+
+  // Stage change quick-select options (ยกเว้น stage ปัจจุบัน)
+  const stageOptions = STAGES
+    .filter(s => s.key !== d.stage)
+    .map(s => `<option value="${s.key}">${s.label}</option>`)
+    .join('');
+
+  return `
+    <div class="bg-gray-800/60 border ${stage.ring} rounded-xl p-3 hover:bg-gray-800
+                hover:border-gray-600 transition-all group cursor-pointer"
+         onclick="openEditDealModal(${d.id})">
+
+      <!-- Title -->
+      <div class="text-xs font-semibold text-gray-200 mb-2 leading-snug line-clamp-2">
+        ${escHtml(d.title)}
+      </div>
+
+      <!-- Contact -->
+      ${d.contact_name ? `
+        <div class="flex items-center gap-1.5 mb-2">
+          <svg class="w-3 h-3 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          <span class="text-xs text-gray-500 truncate">${escHtml(d.contact_name)}</span>
+        </div>` : ''}
+
+      <!-- Value + Close date -->
+      <div class="flex items-center justify-between mt-2">
+        <span class="text-xs font-bold" style="color:${stage.color}">
+          ฿${fmtVal}
+        </span>
+        ${closeDate
+          ? `<span class="text-xs ${dateCls}">${closeDate}</span>`
+          : ''}
+      </div>
+
+      <!-- Quick stage change + actions (show on hover) -->
+      <div class="mt-2.5 pt-2.5 border-t border-gray-700/50
+                  opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5"
+           onclick="event.stopPropagation()">
+        <select onchange="changeStage(${d.id}, this.value); this.value='';"
+          class="flex-1 bg-gray-900 border border-gray-700 text-gray-400 text-xs rounded-lg
+                 px-1.5 py-1 focus:outline-none cursor-pointer">
+          <option value="" disabled selected>ย้าย stage...</option>
+          ${stageOptions}
+        </select>
+        <button onclick="deleteDeal(${d.id}, '${escHtml(d.title)}')"
+          class="p-1 rounded-lg text-gray-600 hover:text-red-400 hover:bg-gray-700 transition-colors"
+          title="ลบ">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+        </button>
+      </div>
+
+    </div>`;
+}
+
+// ================================================================
+// DEAL MODAL
+// ================================================================
+async function _openDealModal(deal = null, defaultStage = 'new') {
+  const isEdit = !!deal;
+  document.getElementById('deal-modal-title').textContent       = isEdit ? 'แก้ไข Deal' : 'New Deal';
+  document.getElementById('deal-modal-submit-text').textContent = isEdit ? 'บันทึกการแก้ไข' : 'บันทึก';
+
+  document.getElementById('deal-modal-id').value  = deal?.id         || '';
+  document.getElementById('deal-title').value     = deal?.title      || '';
+  document.getElementById('deal-value').value     = deal?.value      || '';
+  document.getElementById('deal-stage').value     = deal?.stage      || defaultStage;
+  document.getElementById('deal-close-date').value = deal?.close_date
+    ? deal.close_date.split('T')[0] : '';
+  document.getElementById('deal-notes').value     = deal?.notes      || '';
+
+  // Clear errors
+  clearDealFieldError('title');
+
+  // โหลด contacts dropdown
+  await populateDealContactDropdown(deal?.contact_id || null);
+
+  const modal = document.getElementById('deal-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  setTimeout(() => document.getElementById('deal-title').focus(), 50);
+}
+
+// โหลด contacts เข้า dropdown
+async function populateDealContactDropdown(selectedId = null) {
+  const sel = document.getElementById('deal-contact');
+  sel.innerHTML = '<option value="">— ไม่ระบุ —</option>';
+  try {
+    const res      = await fetch('/api/contacts');
+    const contacts = await res.json();
+    contacts.forEach(c => {
+      const opt      = document.createElement('option');
+      opt.value      = c.id;
+      opt.textContent = `${c.name}${c.company ? ` (${c.company})` : ''}`;
+      if (selectedId && c.id == selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } catch { /* ใช้ "ไม่ระบุ" ไปก่อน */ }
+}
+
+// openAddDealModal — เปิด modal ว่าง, optional defaultStage
+function openAddDealModal(defaultStage = 'new') {
+  _openDealModal(null, defaultStage);
+}
+
+// openEditDealModal — fetch deal by id แล้วเปิด modal
+async function openEditDealModal(id) {
+  _openDealModal(null, 'new'); // เปิดก่อนให้ responsive
+  document.getElementById('deal-modal-title').textContent = 'กำลังโหลด...';
+  document.getElementById('deal-modal-submit').disabled   = true;
+  try {
+    const res  = await fetch(`/api/deals/${id}`);
+    const deal = await res.json();
+    if (!res.ok) throw new Error(deal.error);
+    document.getElementById('deal-modal-submit').disabled = false;
+    await _openDealModal(deal);
+  } catch {
+    closeDealModal();
+    showToast('โหลดข้อมูลไม่สำเร็จ', 'error');
+  }
+}
+
+function closeDealModal() {
+  document.getElementById('deal-modal').classList.add('hidden');
+  document.getElementById('deal-modal').classList.remove('flex');
+}
+
+// ================================================================
+// DEAL FIELD VALIDATION
+// ================================================================
+function clearDealFieldError(field) {
+  const input = document.getElementById('deal-' + field);
+  const err   = document.getElementById('deal-err-' + field);
+  if (!input || !err) return;
+  input.classList.remove('border-red-500');
+  input.classList.add('border-gray-700');
+  err.classList.add('hidden');
+}
+
+function setDealFieldError(field, msg) {
+  const input = document.getElementById('deal-' + field);
+  const err   = document.getElementById('deal-err-' + field);
+  if (!input || !err) return;
+  input.classList.add('border-red-500');
+  input.classList.remove('border-gray-700');
+  err.textContent = msg;
+  err.classList.remove('hidden');
+}
+
+// ================================================================
+// saveDeal — POST (add) หรือ PUT (edit)
+// ================================================================
+async function saveDeal(e) {
+  e.preventDefault();
+  const id    = document.getElementById('deal-modal-id').value;
+  const title = document.getElementById('deal-title').value.trim();
+
+  clearDealFieldError('title');
+  if (!title) { setDealFieldError('title', 'กรุณากรอกชื่อ Deal'); return; }
+
+  const body = {
+    title,
+    contact_id: document.getElementById('deal-contact').value    || null,
+    value:      parseFloat(document.getElementById('deal-value').value) || 0,
+    stage:      document.getElementById('deal-stage').value,
+    close_date: document.getElementById('deal-close-date').value || null,
+    notes:      document.getElementById('deal-notes').value.trim() || null,
+  };
+
+  // loading state
+  const btn     = document.getElementById('deal-modal-submit');
+  const spinner = document.getElementById('deal-modal-spinner');
+  const btnText = document.getElementById('deal-modal-submit-text');
+  btn.disabled = true;
+  spinner.classList.remove('hidden');
+  btnText.textContent = 'กำลังบันทึก...';
+
+  try {
+    const url    = id ? `/api/deals/${id}` : '/api/deals';
+    const method = id ? 'PUT' : 'POST';
+    const res    = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) { setDealFieldError('title', data.error || 'เกิดข้อผิดพลาด'); return; }
+
+    closeDealModal();
+    showToast(id ? 'แก้ไข Deal สำเร็จ ✓' : 'เพิ่ม Deal สำเร็จ ✓');
+    await loadDeals();
+    loadPipeline(); // refresh dashboard pipeline bar
+  } catch {
+    setDealFieldError('title', 'ไม่สามารถเชื่อมต่อ server');
+  } finally {
+    btn.disabled = false;
+    spinner.classList.add('hidden');
+    btnText.textContent = id ? 'บันทึกการแก้ไข' : 'บันทึก';
+  }
+}
+
+// ================================================================
+// changeStage — PATCH stage จาก quick-select บน card
+// ================================================================
+async function changeStage(id, newStage) {
+  try {
+    // ดึงข้อมูลเดิมก่อนแล้ว PUT ทั้งก้อน
+    const getRes = await fetch(`/api/deals/${id}`);
+    const deal   = await getRes.json();
+    const body   = { ...deal, stage: newStage, contact_id: deal.contact_id || null };
+    const res    = await fetch(`/api/deals/${id}`, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error();
+    showToast(`ย้ายไป ${newStage} แล้ว`, 'info');
+    await loadDeals();
+    loadPipeline();
+  } catch {
+    showToast('ย้าย stage ไม่สำเร็จ', 'error');
+  }
+}
+
+// ================================================================
+// deleteDeal — confirm → DELETE
+// ================================================================
+function deleteDeal(id, title) {
+  document.getElementById('delete-msg').textContent = `ต้องการลบ deal "${title}" หรือไม่?`;
+  const modal = document.getElementById('delete-modal');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  document.getElementById('delete-confirm-btn').onclick = async () => {
+    try {
+      await fetch(`/api/deals/${id}`, { method: 'DELETE' });
+      closeDeleteModal();
+      showToast('ลบ Deal แล้ว', 'info');
+      await loadDeals();
+      loadPipeline();
+    } catch {
+      closeDeleteModal();
+      showToast('ลบไม่สำเร็จ', 'error');
+    }
+  };
 }
 
 // ================================================================
@@ -540,13 +896,16 @@ function escHtml(str) {
 document.getElementById('contact-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeContactModal();
 });
+document.getElementById('deal-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDealModal();
+});
 document.getElementById('delete-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeDeleteModal();
 });
 
 // Escape key ปิด modal
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeContactModal(); closeDeleteModal(); }
+  if (e.key === 'Escape') { closeContactModal(); closeDealModal(); closeDeleteModal(); }
 });
 
 // ================================================================

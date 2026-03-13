@@ -312,18 +312,75 @@
     </section>
 
     <!-- ============================================================
-         SECTION: DEALS (placeholder)
+         SECTION: DEALS — Kanban Board
     ============================================================ -->
     <section id="section-deals" class="fade-in hidden">
-      <div class="bg-surface rounded-xl border border-gray-800 p-12 text-center">
-        <div class="w-12 h-12 rounded-full bg-indigo-600/10 flex items-center justify-center mx-auto mb-4">
-          <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-          </svg>
+
+      <!-- Top bar: Summary + New Deal button -->
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+
+        <!-- Summary Cards -->
+        <div class="flex flex-wrap gap-3">
+          <div class="bg-surface border border-gray-800 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-indigo-600/20 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">มูลค่ารวม Pipeline</div>
+              <div id="deal-total-value" class="text-sm font-bold text-white">—</div>
+            </div>
+          </div>
+          <div class="bg-surface border border-gray-800 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-green-600/20 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">Won Deals</div>
+              <div id="deal-won-value" class="text-sm font-bold text-white">—</div>
+            </div>
+          </div>
+          <div class="bg-surface border border-gray-800 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-yellow-600/20 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs text-gray-500">Win Rate</div>
+              <div id="deal-win-rate" class="text-sm font-bold text-white">—</div>
+            </div>
+          </div>
         </div>
-        <p class="text-gray-400 text-sm">Deals section — coming soon</p>
+
+        <!-- New Deal Button -->
+        <button onclick="openAddDealModal()"
+          class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm
+                 font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          New Deal
+        </button>
       </div>
+
+      <!-- Kanban Board — horizontal scroll -->
+      <div class="overflow-x-auto pb-4">
+        <div id="kanban-board" class="flex gap-4 min-w-max">
+          <!-- columns rendered by JS -->
+          <div class="flex items-center gap-3 py-16 px-8 text-gray-500">
+            <div class="w-5 h-5 spinner rounded-full border-2 border-gray-700 border-t-indigo-400"></div>
+            <span class="text-sm">กำลังโหลด...</span>
+          </div>
+        </div>
+      </div>
+
     </section>
 
   </main>
@@ -446,6 +503,114 @@
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
           </svg>
           <span id="modal-submit-text">บันทึก</span>
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL: Add / Edit Deal
+================================================================ -->
+<div id="deal-modal"
+  class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-surface border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl">
+
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+      <h3 id="deal-modal-title" class="text-base font-semibold text-white">New Deal</h3>
+      <button onclick="closeDealModal()"
+        class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400
+               hover:text-white hover:bg-gray-800 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <form id="deal-form" onsubmit="saveDeal(event)" class="px-6 py-5 space-y-4">
+      <input type="hidden" id="deal-modal-id" />
+
+      <div class="grid grid-cols-2 gap-4">
+
+        <!-- ชื่อ Deal * -->
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">
+            ชื่อ Deal <span class="text-red-400">*</span>
+          </label>
+          <input id="deal-title" type="text" placeholder="เช่น Enterprise License — ABC Corp"
+            oninput="clearDealFieldError('title')"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600 transition-colors"/>
+          <p id="deal-err-title" class="mt-1 text-xs text-red-400 hidden"></p>
+        </div>
+
+        <!-- Contact (dropdown) -->
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">Contact</label>
+          <select id="deal-contact"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+            <option value="">— ไม่ระบุ —</option>
+          </select>
+        </div>
+
+        <!-- มูลค่า -->
+        <div class="col-span-2 sm:col-span-1">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">มูลค่า (บาท)</label>
+          <input id="deal-value" type="number" min="0" step="1000" placeholder="0"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600"/>
+        </div>
+
+        <!-- Stage -->
+        <div class="col-span-2 sm:col-span-1">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">Stage</label>
+          <select id="deal-stage"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="proposal">Proposal</option>
+            <option value="negotiation">Negotiation</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+        </div>
+
+        <!-- วันปิด -->
+        <div class="col-span-2 sm:col-span-1">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">วันปิด</label>
+          <input id="deal-close-date" type="date"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500
+                   [color-scheme:dark]"/>
+        </div>
+
+        <!-- Notes -->
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">Notes</label>
+          <textarea id="deal-notes" rows="2" placeholder="บันทึกเพิ่มเติม..."
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600 resize-none"></textarea>
+        </div>
+
+      </div>
+
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="closeDealModal()"
+          class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium py-2.5 rounded-lg transition-colors">
+          ยกเลิก
+        </button>
+        <button type="submit" id="deal-modal-submit"
+          class="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed
+                 text-white text-sm font-medium py-2.5 rounded-lg transition-colors
+                 flex items-center justify-center gap-2">
+          <svg id="deal-modal-spinner" class="hidden w-4 h-4 spinner" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+          </svg>
+          <span id="deal-modal-submit-text">บันทึก</span>
         </button>
       </div>
     </form>
