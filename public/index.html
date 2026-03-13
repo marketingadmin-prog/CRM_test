@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyCRM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: '#1e2433',
+            sidebar: '#161b27',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #161b27; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+    /* Spinner animation */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.8s linear infinite; }
+
+    /* Sidebar active indicator */
+    .nav-item.active { background: rgba(99,102,241,0.15); border-left: 3px solid #6366f1; }
+    .nav-item { border-left: 3px solid transparent; }
+
+    /* Fade-in */
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeIn 0.25s ease; }
+  </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 flex h-screen overflow-hidden font-sans">
+
+<!-- ================================================================
+     SIDEBAR
+================================================================ -->
+<aside id="sidebar"
+  class="w-60 bg-sidebar flex flex-col flex-shrink-0 border-r border-gray-800 transition-all duration-300">
+
+  <!-- Logo -->
+  <div class="flex items-center gap-3 px-5 py-5 border-b border-gray-800">
+    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-sm">M</div>
+    <span class="text-lg font-bold text-white tracking-wide">MyCRM</span>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="flex-1 px-3 py-4 space-y-1">
+
+    <button onclick="showSection('dashboard')"
+      id="nav-dashboard"
+      class="nav-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-all">
+      <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 7h7v7H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 18h7v3H3z"/>
+      </svg>
+      Dashboard
+    </button>
+
+    <button onclick="showSection('contacts')"
+      id="nav-contacts"
+      class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-all">
+      <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4a4 4 0 11-8 0 4 4 0 018 0zm6 4a2 2 0 11-4 0 2 2 0 014 0zM3 16a2 2 0 114 0 2 2 0 01-4 0z"/>
+      </svg>
+      Contacts
+    </button>
+
+    <button onclick="showSection('deals')"
+      id="nav-deals"
+      class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition-all">
+      <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      Deals
+    </button>
+
+  </nav>
+
+  <!-- Footer -->
+  <div class="px-4 py-4 border-t border-gray-800">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-full bg-indigo-700 flex items-center justify-center text-xs font-bold">A</div>
+      <span class="text-xs text-gray-400">Admin</span>
+      <span id="db-status" class="ml-auto w-2 h-2 rounded-full bg-gray-600" title="Checking..."></span>
+    </div>
+  </div>
+</aside>
+
+<!-- ================================================================
+     MAIN CONTENT
+================================================================ -->
+<div class="flex-1 flex flex-col overflow-hidden">
+
+  <!-- Top Bar -->
+  <header class="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900 flex-shrink-0">
+    <div>
+      <h1 id="page-title" class="text-lg font-semibold text-white">Dashboard</h1>
+      <p id="page-sub" class="text-xs text-gray-500 mt-0.5">ภาพรวมระบบ CRM</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="current-date" class="text-xs text-gray-500"></span>
+    </div>
+  </header>
+
+  <!-- Scrollable Content -->
+  <main class="flex-1 overflow-y-auto p-6 space-y-6">
+
+    <!-- ============================================================
+         SECTION: DASHBOARD
+    ============================================================ -->
+    <section id="section-dashboard" class="fade-in">
+
+      <!-- Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+
+        <!-- Total Contacts -->
+        <div class="bg-surface rounded-xl p-5 border border-gray-800 hover:border-gray-700 transition-colors">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">Contacts ทั้งหมด</span>
+            <div class="w-8 h-8 rounded-lg bg-indigo-600/20 flex items-center justify-center">
+              <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4a4 4 0 11-8 0 4 4 0 018 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div id="stat-total" class="text-3xl font-bold text-white">—</div>
+          <p class="text-xs text-gray-500 mt-1">ผู้ติดต่อทั้งหมด</p>
+        </div>
+
+        <!-- Leads -->
+        <div class="bg-surface rounded-xl p-5 border border-gray-800 hover:border-gray-700 transition-colors">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">Leads</span>
+            <div class="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center">
+              <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+          </div>
+          <div id="stat-leads" class="text-3xl font-bold text-white">—</div>
+          <p class="text-xs text-gray-500 mt-1">รอการติดตาม</p>
+        </div>
+
+        <!-- Customers -->
+        <div class="bg-surface rounded-xl p-5 border border-gray-800 hover:border-gray-700 transition-colors">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">Customers</span>
+            <div class="w-8 h-8 rounded-lg bg-green-600/20 flex items-center justify-center">
+              <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div id="stat-customers" class="text-3xl font-bold text-white">—</div>
+          <p class="text-xs text-gray-500 mt-1">ลูกค้าปัจจุบัน</p>
+        </div>
+
+        <!-- Deal Value -->
+        <div class="bg-surface rounded-xl p-5 border border-gray-800 hover:border-gray-700 transition-colors">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">มูลค่า Deals</span>
+            <div class="w-8 h-8 rounded-lg bg-yellow-600/20 flex items-center justify-center">
+              <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div id="stat-deal-value" class="text-3xl font-bold text-white">—</div>
+          <p class="text-xs text-gray-500 mt-1">มูลค่ารวมทั้งหมด</p>
+        </div>
+
+      </div>
+
+      <!-- Pipeline Summary -->
+      <div class="bg-surface rounded-xl border border-gray-800 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-white">Sales Pipeline</h2>
+          <button onclick="showSection('deals')" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+            ดูทั้งหมด →
+          </button>
+        </div>
+        <div id="pipeline-bars" class="p-5 space-y-3">
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 rounded spinner border-2 border-gray-600 border-t-indigo-400"></div>
+            <span class="text-sm text-gray-500">กำลังโหลด...</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         SECTION: CONTACTS
+    ============================================================ -->
+    <section id="section-contacts" class="fade-in hidden">
+
+      <!-- Filter Bar -->
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+
+        <!-- Status Filter -->
+        <select id="filter-status" onchange="filterContacts()"
+          class="bg-surface border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-2
+                 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer">
+          <option value="">สถานะทั้งหมด</option>
+          <option value="lead">Lead</option>
+          <option value="prospect">Prospect</option>
+          <option value="customer">Customer</option>
+          <option value="inactive">Inactive</option>
+        </select>
+
+        <!-- Search -->
+        <div class="relative flex-1 min-w-[200px]">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+          </svg>
+          <input id="search-input" type="text" placeholder="ค้นหา ชื่อ / อีเมล / บริษัท..."
+            oninput="filterContacts()"
+            class="w-full bg-surface border border-gray-700 text-gray-300 text-sm rounded-lg
+                   pl-9 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
+                   placeholder-gray-600" />
+        </div>
+
+        <!-- Count Badge -->
+        <span id="contacts-count"
+          class="text-xs bg-gray-800 text-gray-400 px-3 py-1.5 rounded-full font-medium whitespace-nowrap">
+          — รายการ
+        </span>
+
+        <!-- Add Button -->
+        <button onclick="openContactModal()"
+          class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm
+                 font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          เพิ่ม Contact
+        </button>
+
+      </div>
+
+      <!-- Table Card -->
+      <div class="bg-surface rounded-xl border border-gray-800 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
+                <th class="text-left px-5 py-3 font-medium">ชื่อ</th>
+                <th class="text-left px-5 py-3 font-medium">บริษัท</th>
+                <th class="text-left px-5 py-3 font-medium hidden md:table-cell">อีเมล</th>
+                <th class="text-left px-5 py-3 font-medium hidden lg:table-cell">เบอร์โทร</th>
+                <th class="text-left px-5 py-3 font-medium">สถานะ</th>
+                <th class="text-right px-5 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="contacts-tbody">
+              <!-- Loading state -->
+              <tr id="contacts-loading">
+                <td colspan="6" class="px-5 py-12 text-center">
+                  <div class="flex flex-col items-center gap-3">
+                    <div class="w-6 h-6 spinner rounded-full border-2 border-gray-700 border-t-indigo-400"></div>
+                    <span class="text-sm text-gray-500">กำลังโหลดข้อมูล...</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         SECTION: DEALS (placeholder)
+    ============================================================ -->
+    <section id="section-deals" class="fade-in hidden">
+      <div class="bg-surface rounded-xl border border-gray-800 p-12 text-center">
+        <div class="w-12 h-12 rounded-full bg-indigo-600/10 flex items-center justify-center mx-auto mb-4">
+          <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <p class="text-gray-400 text-sm">Deals section — coming soon</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ================================================================
+     MODAL: Add / Edit Contact
+================================================================ -->
+<div id="contact-modal"
+  class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-surface border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl">
+
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+      <h3 id="modal-title" class="text-base font-semibold text-white">เพิ่ม Contact</h3>
+      <button onclick="closeContactModal()"
+        class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400
+               hover:text-white hover:bg-gray-800 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <form id="contact-form" onsubmit="submitContact(event)" class="px-6 py-5 space-y-4">
+      <input type="hidden" id="modal-id" />
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">ชื่อ <span class="text-red-400">*</span></label>
+          <input id="modal-name" type="text" required placeholder="ชื่อ-นามสกุล"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
+        </div>
+        <div class="col-span-2 sm:col-span-1">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">อีเมล <span class="text-red-400">*</span></label>
+          <input id="modal-email" type="email" required placeholder="email@example.com"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
+        </div>
+        <div class="col-span-2 sm:col-span-1">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">เบอร์โทร</label>
+          <input id="modal-phone" type="text" placeholder="08x-xxx-xxxx"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
+        </div>
+        <div class="col-span-2 sm:col-span-1">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">บริษัท</label>
+          <input id="modal-company" type="text" placeholder="ชื่อบริษัท"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
+        </div>
+        <div class="col-span-2 sm:col-span-1">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">สถานะ</label>
+          <select id="modal-status"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+            <option value="lead">Lead</option>
+            <option value="prospect">Prospect</option>
+            <option value="customer">Customer</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">Tags</label>
+          <input id="modal-tags" type="text" placeholder="enterprise,vip (คั่นด้วย ,)"
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">Notes</label>
+          <textarea id="modal-notes" rows="2" placeholder="บันทึกเพิ่มเติม..."
+            class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600 resize-none"></textarea>
+        </div>
+      </div>
+
+      <!-- Error Message -->
+      <p id="modal-error" class="text-red-400 text-xs hidden"></p>
+
+      <!-- Footer Buttons -->
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="closeContactModal()"
+          class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium py-2.5 rounded-lg transition-colors">
+          ยกเลิก
+        </button>
+        <button type="submit" id="modal-submit"
+          class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2">
+          <span id="modal-submit-text">บันทึก</span>
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast"
+  class="fixed bottom-5 right-5 z-50 hidden items-center gap-3 px-4 py-3
+         rounded-xl shadow-xl text-sm font-medium min-w-[220px] max-w-xs">
+  <span id="toast-icon" class="text-base">✓</span>
+  <span id="toast-msg"></span>
+</div>
+
+<!-- Delete Confirm Dialog -->
+<div id="delete-modal"
+  class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-surface border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+    <div class="w-12 h-12 rounded-full bg-red-600/10 flex items-center justify-center mx-auto mb-4">
+      <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+      </svg>
+    </div>
+    <h3 class="text-base font-semibold text-white mb-2">ยืนยันการลบ</h3>
+    <p id="delete-msg" class="text-sm text-gray-400 mb-5">ต้องการลบ contact นี้หรือไม่?</p>
+    <div class="flex gap-3">
+      <button onclick="closeDeleteModal()"
+        class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium py-2.5 rounded-lg transition-colors">
+        ยกเลิก
+      </button>
+      <button id="delete-confirm-btn"
+        class="flex-1 bg-red-600 hover:bg-red-500 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
+        ลบ
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
