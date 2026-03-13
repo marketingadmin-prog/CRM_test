@@ -884,6 +884,33 @@ function deleteDeal(id, title) {
 }
 
 // ================================================================
+// EXPORT CSV
+// ================================================================
+async function exportCSV() {
+  try {
+    showToast('กำลัง export...', 'info');
+    const res = await fetch('/api/contacts/export');
+    if (!res.ok) throw new Error('Export failed');
+
+    // สร้าง blob แล้ว trigger download โดยไม่ต้อง redirect
+    const blob     = await res.blob();
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    const date     = new Date().toISOString().split('T')[0];
+    a.href         = url;
+    a.download     = `contacts-${date}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('Export สำเร็จ ✓');
+  } catch (err) {
+    showToast('Export ไม่สำเร็จ', 'error');
+  }
+}
+
+// ================================================================
 // UTILITIES
 // ================================================================
 function escHtml(str) {

@@ -64,6 +64,63 @@ router.get('/stats', async (req, res) => {
 });
 
 // ----------------------------------------------------------------
+// GET /api/contacts/export
+// ดึง contacts + deal count แปลงเป็น CSV พร้อม BOM สำหรับ Excel
+// หมายเหตุ: ต้องอยู่ก่อน /:id
+// ----------------------------------------------------------------
+router.get('/export', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        c.id,
+        c.name,
+        c.company,
+        c.email,
+        c.phone,
+        c.status,
+        c.tags,
+        c.notes,
+        COUNT(d.id)::INT           AS deal_count,
+        COALESCE(SUM(d.value), 0)  AS deal_total,
+        TO_CHAR(c.created_at, 'YYYY-MM-DD') AS created_date
+      FROM contacts c
+      LEFT JOIN deals d ON d.contact_id = c.id
+      GROUP BY c.id
+      ORDER BY c.name ASC
+    `);
+
+    // CSV header
+    const headers = [
+      'ID', 'ชื่อ', 'บริษัท', 'อีเมล', 'เบอร์โทร',
+      'สถานะ', 'Tags', 'Notes', 'จำนวน Deals', 'มูลค่า Deals', 'วันที่เพิ่ม'
+    ];
+
+    // helper: escape CSV field (ห่อ " ถ้ามี comma/newline/quote)
+    const csvField = (v) => {
+      const s = String(v ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const rows = result.rows.map(r => [
+      r.id, r.name, r.company, r.email, r.phone,
+      r.status, r.tags, r.notes, r.deal_count, r.deal_total, r.created_date
+    ].map(csvField).join(','));
+
+    // BOM (\uFEFF) ทำให้ Excel (Windows/Mac) อ่านภาษาไทยได้ถูกต้อง
+    const csv  = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const date = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="contacts-${date}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('GET /contacts/export error:', err.message);
+    res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+// ----------------------------------------------------------------
 // GET /api/contacts/:id
 // ----------------------------------------------------------------
 router.get('/:id', async (req, res) => {

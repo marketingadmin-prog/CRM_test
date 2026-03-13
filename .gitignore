@@ -1,4 +1,22 @@
+# Dependencies
 node_modules/
+
+# Environment variables (ห้าม commit ลับ)
 .env
+.env.local
+.env.production
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
