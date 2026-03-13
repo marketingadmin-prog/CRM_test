@@ -244,7 +244,7 @@
         </span>
 
         <!-- Add Button -->
-        <button onclick="openContactModal()"
+        <button onclick="openAddModal()"
           class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm
                  font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -324,34 +324,54 @@
     </div>
 
     <!-- Modal Body -->
-    <form id="contact-form" onsubmit="submitContact(event)" class="px-6 py-5 space-y-4">
+    <form id="contact-form" onsubmit="saveContact(event)" class="px-6 py-5 space-y-4">
       <input type="hidden" id="modal-id" />
 
       <div class="grid grid-cols-2 gap-4">
+
+        <!-- ชื่อ * -->
         <div class="col-span-2">
-          <label class="block text-xs text-gray-400 mb-1.5 font-medium">ชื่อ <span class="text-red-400">*</span></label>
-          <input id="modal-name" type="text" required placeholder="ชื่อ-นามสกุล"
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">
+            ชื่อ-นามสกุล <span class="text-red-400">*</span>
+          </label>
+          <input id="modal-name" type="text" placeholder="สมชาย ใจดี"
+            oninput="clearFieldError('name')"
             class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
-                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600
+                   transition-colors" />
+          <p id="err-name" class="mt-1 text-xs text-red-400 hidden"></p>
         </div>
+
+        <!-- อีเมล * -->
         <div class="col-span-2 sm:col-span-1">
-          <label class="block text-xs text-gray-400 mb-1.5 font-medium">อีเมล <span class="text-red-400">*</span></label>
-          <input id="modal-email" type="email" required placeholder="email@example.com"
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">
+            อีเมล <span class="text-red-400">*</span>
+          </label>
+          <input id="modal-email" type="text" placeholder="email@example.com"
+            oninput="clearFieldError('email')"
             class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
-                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600
+                   transition-colors" />
+          <p id="err-email" class="mt-1 text-xs text-red-400 hidden"></p>
         </div>
+
+        <!-- เบอร์โทร -->
         <div class="col-span-2 sm:col-span-1">
           <label class="block text-xs text-gray-400 mb-1.5 font-medium">เบอร์โทร</label>
           <input id="modal-phone" type="text" placeholder="08x-xxx-xxxx"
             class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
                    focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
         </div>
+
+        <!-- บริษัท -->
         <div class="col-span-2 sm:col-span-1">
           <label class="block text-xs text-gray-400 mb-1.5 font-medium">บริษัท</label>
           <input id="modal-company" type="text" placeholder="ชื่อบริษัท"
             class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
                    focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
         </div>
+
+        <!-- สถานะ -->
         <div class="col-span-2 sm:col-span-1">
           <label class="block text-xs text-gray-400 mb-1.5 font-medium">สถานะ</label>
           <select id="modal-status"
@@ -363,22 +383,27 @@
             <option value="inactive">Inactive</option>
           </select>
         </div>
+
+        <!-- Tags -->
         <div class="col-span-2">
-          <label class="block text-xs text-gray-400 mb-1.5 font-medium">Tags</label>
-          <input id="modal-tags" type="text" placeholder="enterprise,vip (คั่นด้วย ,)"
+          <label class="block text-xs text-gray-400 mb-1.5 font-medium">
+            Tags
+            <span class="text-gray-600 font-normal ml-1">(คั่นด้วย , เช่น enterprise,vip)</span>
+          </label>
+          <input id="modal-tags" type="text" placeholder="enterprise,vip"
             class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
                    focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600" />
         </div>
+
+        <!-- Notes -->
         <div class="col-span-2">
           <label class="block text-xs text-gray-400 mb-1.5 font-medium">Notes</label>
           <textarea id="modal-notes" rows="2" placeholder="บันทึกเพิ่มเติม..."
             class="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2.5
                    focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-600 resize-none"></textarea>
         </div>
-      </div>
 
-      <!-- Error Message -->
-      <p id="modal-error" class="text-red-400 text-xs hidden"></p>
+      </div>
 
       <!-- Footer Buttons -->
       <div class="flex gap-3 pt-1">
@@ -387,7 +412,14 @@
           ยกเลิก
         </button>
         <button type="submit" id="modal-submit"
-          class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2">
+          class="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed
+                 text-white text-sm font-medium py-2.5 rounded-lg transition-colors
+                 flex items-center justify-center gap-2">
+          <!-- spinner (hidden by default) -->
+          <svg id="modal-spinner" class="hidden w-4 h-4 spinner" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+          </svg>
           <span id="modal-submit-text">บันทึก</span>
         </button>
       </div>
