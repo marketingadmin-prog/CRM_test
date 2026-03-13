@@ -2,6 +2,7 @@
 const express = require('express');
 const router  = express.Router();
 const { pool } = require('../db');
+const XLSX    = require('xlsx');
 
 // ----------------------------------------------------------------
 // GET /api/deals
@@ -54,6 +55,89 @@ router.get('/pipeline', async (req, res) => {
   } catch (err) {
     console.error('GET /deals/pipeline error:', err.message);
     res.status(500).json({ error: 'Failed to fetch pipeline' });
+  }
+});
+
+// ----------------------------------------------------------------
+// GET /api/deals/export
+// ส่งออก deals ทั้งหมดเป็น .xlsx พร้อม 2 sheets: Deals + Pipeline
+// หมายเหตุ: ต้องอยู่ก่อน /:id
+// ----------------------------------------------------------------
+router.get('/export', async (req, res) => {
+  try {
+    // ---- Sheet 1: รายการ Deals ----
+    const dealsRes = await pool.query(`
+      SELECT
+        d.id,
+        d.title                                        AS "ชื่อ Deal",
+        c.name                                         AS "Contact",
+        c.company                                      AS "บริษัท",
+        d.value::FLOAT                                 AS "มูลค่า (บาท)",
+        d.stage                                        AS "Stage",
+        TO_CHAR(d.close_date, 'YYYY-MM-DD')            AS "วันปิด",
+        d.notes                                        AS "Notes",
+        TO_CHAR(d.created_at, 'YYYY-MM-DD')            AS "วันที่สร้าง"
+      FROM deals d
+      LEFT JOIN contacts c ON d.contact_id = c.id
+      ORDER BY d.created_at DESC
+    `);
+
+    // ---- Sheet 2: Pipeline Summary ----
+    const pipelineRes = await pool.query(`
+      SELECT
+        stage                        AS "Stage",
+        COUNT(*)::INT                AS "จำนวน Deals",
+        COALESCE(SUM(value), 0)::FLOAT AS "มูลค่ารวม (บาท)"
+      FROM deals
+      GROUP BY stage
+      ORDER BY
+        CASE stage
+          WHEN 'new'         THEN 1
+          WHEN 'contacted'   THEN 2
+          WHEN 'proposal'    THEN 3
+          WHEN 'negotiation' THEN 4
+          WHEN 'won'         THEN 5
+          WHEN 'lost'        THEN 6
+          ELSE 7
+        END
+    `);
+
+    // สร้าง Workbook
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1 — Deals
+    const wsDeals = XLSX.utils.json_to_sheet(dealsRes.rows);
+    // ปรับความกว้าง column อัตโนมัติ
+    wsDeals['!cols'] = [
+      { wch: 6 },  // id
+      { wch: 35 }, // ชื่อ deal
+      { wch: 20 }, // contact
+      { wch: 20 }, // บริษัท
+      { wch: 16 }, // มูลค่า
+      { wch: 14 }, // stage
+      { wch: 12 }, // วันปิด
+      { wch: 30 }, // notes
+      { wch: 12 }, // วันสร้าง
+    ];
+    XLSX.utils.book_append_sheet(wb, wsDeals, 'Deals');
+
+    // Sheet 2 — Pipeline
+    const wsPipeline = XLSX.utils.json_to_sheet(pipelineRes.rows);
+    wsPipeline['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsPipeline, 'Pipeline Summary');
+
+    // แปลงเป็น Buffer แล้วส่ง
+    const buf  = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const date = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition',
+      `attachment; filename="deals-${date}.xlsx"`);
+    res.send(buf);
+  } catch (err) {
+    console.error('GET /deals/export error:', err.message);
+    res.status(500).json({ error: 'Export failed' });
   }
 });
 

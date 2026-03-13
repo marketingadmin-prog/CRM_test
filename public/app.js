@@ -884,6 +884,32 @@ function deleteDeal(id, title) {
 }
 
 // ================================================================
+// EXPORT EXCEL (Deals)
+// ================================================================
+async function exportDealsExcel() {
+  try {
+    showToast('กำลัง export Excel...', 'info');
+    const res = await fetch('/api/deals/export');
+    if (!res.ok) throw new Error('Export failed');
+
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    a.href     = url;
+    a.download = `deals-${date}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('Export Excel สำเร็จ ✓');
+  } catch {
+    showToast('Export ไม่สำเร็จ', 'error');
+  }
+}
+
+// ================================================================
 // EXPORT CSV
 // ================================================================
 async function exportCSV() {
