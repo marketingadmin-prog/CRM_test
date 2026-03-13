@@ -35,6 +35,15 @@
     /* Fade-in */
     @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
     .fade-in { animation: fadeIn 0.25s ease; }
+
+    /* Search highlight */
+    mark.hl {
+      background: rgba(250, 204, 21, 0.25);
+      color: #fde68a;
+      border-radius: 2px;
+      padding: 0 1px;
+      font-weight: 600;
+    }
   </style>
 </head>
 
@@ -223,25 +232,41 @@
           <option value="inactive">Inactive</option>
         </select>
 
-        <!-- Search -->
+        <!-- Search (debounce 300ms ใน app.js) -->
         <div class="relative flex-1 min-w-[200px]">
           <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
           </svg>
-          <input id="search-input" type="text" placeholder="ค้นหา ชื่อ / อีเมล / บริษัท..."
-            oninput="filterContacts()"
+          <input id="search-input" type="text"
+            placeholder="ค้นหา ชื่อ / บริษัท / อีเมล / เบอร์..."
+            oninput="debouncedFilter()"
             class="w-full bg-surface border border-gray-700 text-gray-300 text-sm rounded-lg
-                   pl-9 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent
-                   placeholder-gray-600" />
+                   pl-9 pr-9 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500
+                   focus:border-transparent placeholder-gray-600" />
+          <!-- Clear search button -->
+          <button id="search-clear" onclick="clearSearch()"
+            class="absolute right-2.5 top-1/2 -translate-y-1/2 hidden
+                   text-gray-500 hover:text-gray-300 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
 
-        <!-- Count Badge -->
-        <span id="contacts-count"
-          class="text-xs bg-gray-800 text-gray-400 px-3 py-1.5 rounded-full font-medium whitespace-nowrap">
-          — รายการ
-        </span>
+        <!-- Count + Clear filter -->
+        <div class="flex items-center gap-2">
+          <span id="contacts-count"
+            class="text-xs bg-gray-800 text-gray-400 px-3 py-1.5 rounded-full font-medium whitespace-nowrap">
+            — รายการ
+          </span>
+          <button id="clear-filter-btn" onclick="clearAllFilters()"
+            class="hidden text-xs text-indigo-400 hover:text-indigo-300 px-2 py-1.5
+                   rounded-lg hover:bg-gray-800 transition-colors whitespace-nowrap">
+            ล้าง filter
+          </button>
+        </div>
 
         <!-- Add Button -->
         <button onclick="openAddModal()"

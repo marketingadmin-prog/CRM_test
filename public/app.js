@@ -128,14 +128,15 @@ async function loadPipeline() {
 // CONTACTS — State
 // ================================================================
 let allContacts = [];
+let _filterTimer = null; // debounce timer
 
-// loadContacts — GET /api/contacts → render ตาราง
+// loadContacts — GET /api/contacts → cache + render
 async function loadContacts() {
   setContactsLoading(true);
   try {
     const res   = await fetch('/api/contacts');
     allContacts = await res.json();
-    filterContacts(); // render ผ่าน filter เพื่อ respect dropdown/search ที่เลือกไว้
+    filterContacts();
   } catch (err) {
     document.getElementById('contacts-tbody').innerHTML = `
       <tr><td colspan="6" class="px-5 py-10 text-center text-red-400 text-sm">
@@ -157,30 +158,85 @@ function setContactsLoading(show) {
     </tr>`;
 }
 
-// filterContacts — กรองตาม status dropdown + search keyword
+// debouncedFilter — เรียกจาก oninput ใน search box (300ms debounce)
+function debouncedFilter() {
+  clearTimeout(_filterTimer);
+  _filterTimer = setTimeout(filterContacts, 300);
+
+  // แสดง/ซ่อนปุ่ม clear บน search input
+  const val = document.getElementById('search-input').value;
+  document.getElementById('search-clear').classList.toggle('hidden', !val);
+}
+
+// filterContacts — กรองตาม status + keyword (ซ้อนกันได้)
 function filterContacts() {
   const status = document.getElementById('filter-status').value;
-  const search = document.getElementById('search-input').value.trim().toLowerCase();
+  const search = document.getElementById('search-input').value.trim();
+  const kw     = search.toLowerCase();
 
   let filtered = allContacts;
+
   if (status) {
     filtered = filtered.filter(c => c.status === status);
   }
-  if (search) {
+  if (kw) {
     filtered = filtered.filter(c =>
-      (c.name    || '').toLowerCase().includes(search) ||
-      (c.email   || '').toLowerCase().includes(search) ||
-      (c.company || '').toLowerCase().includes(search)
+      (c.name    || '').toLowerCase().includes(kw) ||
+      (c.company || '').toLowerCase().includes(kw) ||
+      (c.email   || '').toLowerCase().includes(kw) ||
+      (c.phone   || '').toLowerCase().includes(kw)
     );
   }
-  renderContacts(filtered);
+
+  // อัพเดต count label
+  const total    = allContacts.length;
+  const shown    = filtered.length;
+  const isFiltered = status || kw;
+  document.getElementById('contacts-count').textContent = isFiltered
+    ? `แสดง ${shown} จาก ${total} รายการ`
+    : `${total} รายการ`;
+
+  // แสดง/ซ่อนปุ่ม "ล้าง filter"
+  document.getElementById('clear-filter-btn').classList.toggle('hidden', !isFiltered);
+
+  renderContacts(filtered, kw); // ส่ง keyword เพื่อ highlight
 }
 
-function renderContacts(contacts) {
+// clearSearch — ล้างเฉพาะ search input
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').classList.add('hidden');
+  filterContacts();
+}
+
+// clearAllFilters — ล้าง status + search พร้อมกัน
+function clearAllFilters() {
+  document.getElementById('filter-status').value = '';
+  document.getElementById('search-input').value  = '';
+  document.getElementById('search-clear').classList.add('hidden');
+  filterContacts();
+}
+
+// ================================================================
+// HIGHLIGHT HELPER
+// ================================================================
+// highlight(text, kw) — ห่อส่วนที่ match ด้วย <mark class="hl">
+function highlight(text, kw) {
+  if (!kw || !text) return escHtml(text || '');
+  const safe  = escHtml(text);
+  const safeK = escHtml(kw).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return safe.replace(new RegExp(safeK, 'gi'), m => `<mark class="hl">${m}</mark>`);
+}
+
+// ================================================================
+// RENDER TABLE
+// ================================================================
+function renderContacts(contacts, kw = '') {
   const tbody = document.getElementById('contacts-tbody');
-  document.getElementById('contacts-count').textContent = `${contacts.length} รายการ`;
 
   if (!contacts.length) {
+    const isSearch = document.getElementById('search-input').value.trim() ||
+                     document.getElementById('filter-status').value;
     tbody.innerHTML = `
       <tr>
         <td colspan="6" class="px-5 py-16 text-center">
@@ -188,11 +244,19 @@ function renderContacts(contacts) {
             <div class="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
               <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-4a4 4 0 11-8 0 4 4 0 018 0z"/>
+                  d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
               </svg>
             </div>
-            <p class="text-sm text-gray-500 font-medium">ไม่พบข้อมูล</p>
-            <p class="text-xs text-gray-600">ลองเปลี่ยน filter หรือเพิ่ม contact ใหม่</p>
+            <p class="text-sm text-gray-500 font-medium">
+              ${isSearch ? 'ไม่พบข้อมูลที่ค้นหา' : 'ยังไม่มี contacts'}
+            </p>
+            ${isSearch
+              ? `<button onclick="clearAllFilters()"
+                   class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                   ล้าง filter
+                 </button>`
+              : `<p class="text-xs text-gray-600">กดปุ่ม + เพิ่ม Contact เพื่อเริ่มต้น</p>`
+            }
           </div>
         </td>
       </tr>`;
@@ -201,9 +265,16 @@ function renderContacts(contacts) {
 
   const avatarColors = ['bg-indigo-700','bg-blue-700','bg-purple-700','bg-teal-700','bg-rose-700'];
   tbody.innerHTML = contacts.map((c, i) => {
-    const cfg      = STATUS_CONFIG[c.status] || STATUS_CONFIG.inactive;
-    const initials = (c.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    const cfg       = STATUS_CONFIG[c.status] || STATUS_CONFIG.inactive;
+    const initials  = (c.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
     const avatarCls = avatarColors[i % avatarColors.length];
+
+    // highlight fields ที่ค้นหาได้
+    const hlName    = highlight(c.name,    kw);
+    const hlCompany = highlight(c.company, kw);
+    const hlEmail   = highlight(c.email,   kw);
+    const hlPhone   = highlight(c.phone,   kw);
+
     return `
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors group">
         <td class="px-5 py-3.5">
@@ -213,18 +284,20 @@ function renderContacts(contacts) {
               ${escHtml(initials)}
             </div>
             <div>
-              <div class="text-sm font-medium text-gray-200">${escHtml(c.name)}</div>
+              <div class="text-sm font-medium text-gray-200">${hlName}</div>
               ${c.tags ? `<div class="text-xs text-gray-600 mt-0.5">${escHtml(c.tags)}</div>` : ''}
             </div>
           </div>
         </td>
-        <td class="px-5 py-3.5 text-sm text-gray-400">${escHtml(c.company || '—')}</td>
+        <td class="px-5 py-3.5 text-sm text-gray-400">
+          ${c.company ? hlCompany : '<span class="text-gray-600">—</span>'}
+        </td>
         <td class="px-5 py-3.5 text-sm text-gray-400 hidden md:table-cell">
           <a href="mailto:${escHtml(c.email)}"
-            class="hover:text-indigo-400 transition-colors">${escHtml(c.email)}</a>
+            class="hover:text-indigo-400 transition-colors">${hlEmail}</a>
         </td>
         <td class="px-5 py-3.5 text-sm text-gray-500 hidden lg:table-cell">
-          ${escHtml(c.phone || '—')}
+          ${c.phone ? hlPhone : '<span class="text-gray-600">—</span>'}
         </td>
         <td class="px-5 py-3.5">
           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.cls}">
